@@ -1,0 +1,107 @@
+USE Covidanalysis
+
+-- Data Selection
+
+Select Location, date, total_cases, new_cases, total_deaths, population
+From Covid_Death
+Where continent is not null 
+order by 1,2
+
+-- Total Cases vs Total Deaths
+-- Likelihood of death if infected by covid
+
+Select Location, date, total_cases,total_deaths, (total_deaths/total_cases)*100 as DeathPercentage
+From Covid_Death
+Where location like 'India'
+and continent is not null 
+order by 1,2
+
+
+
+TB
+
+https://public.tableau.com/app/profile/vijay.selvaraj2043/viz/Covid_Analysis_16718509909640/Dashboard1?publish=yes
+-- Total Cases vs Population
+-- percentage of population infected with Covid
+Select Location, date, Population, total_cases,  (total_cases/population)*100 as PercentPopulationInfected
+From Covid_Death
+Where location like 'India'
+and continent is not null 
+order by 1,2
+
+-- Countries with Highest Infection Rate compared to Population
+
+Select Location, Population, MAX(total_cases) as HighestInfectionCount,  Max((total_cases/population))*100 as PercentPopulationInfected
+From Covid_Death
+Group by Location, Population
+order by PercentPopulationInfected desc
+
+-- Countries with Highest Death Count per Population
+
+Select Location, MAX(cast(Total_deaths as int)) as TotalDeathCount
+From Covid_Death
+Where continent is not null 
+Group by Location
+order by TotalDeathCount desc
+
+--Granular level of analysis based on continents
+
+--Death count grouped by continents
+Select continent, MAX(cast(Total_deaths as int)) as TotalDeathCount
+From Covid_Death
+Where continent is not null 
+Group by continent
+order by TotalDeathCount desc
+
+-- Total Population vs Vaccination administered
+-- Displays Percentage of Population that has recieved at least one Covid Vaccine
+
+
+Select cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations
+, SUM(CONVERT(int,cv.new_vaccinations)) OVER (Partition by cd.Location Order by cd.location, cd.Date) as RollingPeopleVaccinated
+--, (RollingPeopleVaccinated/population)*100
+From Covid_Death as cd
+Join Covid_Vacc cv
+	On cd.location = cv.location
+	and cd.date = cv.date
+where cd.continent is not null 
+order by 2,3
+
+-- Creating View to store data for later visualizations
+
+Create View PercentPopulationVaccinated as
+Select cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations
+, SUM(CONVERT(int,cv.new_vaccinations)) OVER (Partition by cd.Location Order by cd.location, cd.Date) as RollingPeopleVaccinated
+--, (RollingPeopleVaccinated/population)*100
+From Covid_Death cd
+Join Covid_Vacc cv
+	On cd.location = cv.location
+	and cd.date = cv.date
+where cd.continent is not null 
+
+
+-- Fetching cumulative data for dashboarding
+Select SUM(new_cases) as total_cases, SUM(cast(new_deaths as int)) as total_deaths, SUM(cast(new_deaths as int))/SUM(New_Cases)*100 as DeathPercentage
+From Covid_Death cd
+where continent is not null 
+order by 1,2
+
+--Grouping by countriees and their death nos
+
+Select location, SUM(cast(new_deaths as int)) as TotalDeathCount
+From Covid_Death
+Where continent is null 
+and location not in ('World', 'European Union', 'International','High income','Upper middle income', 'Lower middle income','low income')
+Group by location
+order by TotalDeathCount desc
+
+--countries and counts
+Select Location, Population, MAX(total_cases) as HighestInfectionCount,  Max((total_cases/population))*100 as PercentPopulationInfected
+From Covid_Death
+Group by Location, Population
+order by PercentPopulationInfected desc
+
+Select Location, Population,date, MAX(total_cases) as HighestInfectionCount,  Max((total_cases/population))*100 as PercentPopulationInfected
+From Covid_Death
+Group by Location, Population, date
+order by PercentPopulationInfected desc
